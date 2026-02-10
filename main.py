@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import subprocess
 import os
+import sys
 import time as time_mod
 from datetime import date, datetime
 from adhan.adhan import adhan
@@ -10,7 +11,12 @@ from adhan.methods import ISNA, ASR_STANDARD
 # --- Config ---
 LATITUDE = 45.4215    # Ottawa, ON — change to your city
 LONGITUDE = -75.6972
-AUDIO_FILE = os.path.join(os.path.dirname(__file__), "audio", "athan.mp3")
+# PyInstaller bundles files into a temp dir accessed via sys._MEIPASS
+if getattr(sys, 'frozen', False):
+    BASE_DIR = sys._MEIPASS
+else:
+    BASE_DIR = os.path.dirname(__file__)
+AUDIO_FILE = os.path.join(BASE_DIR, "audio", "athan.mp3")
 AUDIO_DURATION = 251  # seconds (4:11)
 
 # --- Prayer time calculation ---
