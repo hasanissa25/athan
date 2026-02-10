@@ -73,6 +73,45 @@ def update_progress():
         time_label.config(text="")
         play_btn.config(text="▶  Play Athan")
 
+# --- Schedule Mac wake before each prayer ---
+from datetime import timedelta
+
+def schedule_wake_times(times):
+    now = datetime.now()
+    cmds = []
+    for prayer, prayer_dt in times.items():
+        wake_at = prayer_dt - timedelta(minutes=1)
+        if wake_at > now:
+            stamp = wake_at.strftime("%m/%d/%Y %H:%M:%S")
+            cmds.append(f'pmset schedule wake "{stamp}"')
+    if not cmds:
+        return
+    combined = " && ".join(cmds)
+    subprocess.run([
+        "osascript", "-e",
+        f'do shell script "{combined}" with administrator privileges'
+    ])
+
+# --- Daily refresh — recalculates times and reschedules wake at midnight ---
+current_date = date.today()
+
+def daily_refresh():
+    global prayer_times, current_date, announced_today
+    today = date.today()
+    if today != current_date:
+        current_date = today
+        prayer_times = get_prayer_times()
+        announced_today = set()
+        # Update the UI
+        date_label.config(text=today.strftime("%A, %B %d, %Y"))
+        for prayer, prayer_dt in prayer_times.items():
+            time_labels_by_prayer[prayer].config(text=prayer_dt.strftime("%I:%M %p"))
+            row_labels[prayer].config(bg="#16213e", fg="#e0e0e0")
+        # Schedule wake times for the new day
+        schedule_wake_times(prayer_times)
+    # Check again in 3 hours
+    root.after(3 * 60 * 60 * 1000, daily_refresh)
+
 # --- Auto-play scheduler ---
 # Tracks which prayers have already been announced today
 announced_today = set()
@@ -115,6 +154,7 @@ frame = tk.Frame(root, bg="#1a1a2e", padx=40, pady=20)
 frame.pack()
 
 row_labels = {}
+time_labels_by_prayer = {}
 for prayer, prayer_dt in prayer_times.items():
     row = tk.Frame(frame, bg="#16213e", padx=20, pady=10)
     row.pack(fill="x", pady=4)
@@ -122,9 +162,11 @@ for prayer, prayer_dt in prayer_times.items():
     name_label = tk.Label(row, text=prayer, font=("Helvetica", 16),
                           fg="#e0e0e0", bg="#16213e", anchor="w", width=10)
     name_label.pack(side="left")
-    tk.Label(row, text=prayer_dt.strftime("%I:%M %p"), font=("Helvetica", 16, "bold"),
-             fg="#4ecca3", bg="#16213e", anchor="e", width=10).pack(side="right")
+    pt_label = tk.Label(row, text=prayer_dt.strftime("%I:%M %p"), font=("Helvetica", 16, "bold"),
+             fg="#4ecca3", bg="#16213e", anchor="e", width=10)
+    pt_label.pack(side="right")
     row_labels[prayer] = name_label
+    time_labels_by_prayer[prayer] = pt_label
 
 # Status label
 status_label = tk.Label(root, text="Auto-athan is ON — will play at each prayer time",
@@ -158,7 +200,11 @@ x = (root.winfo_screenwidth() // 2) - (w // 2)
 y = (root.winfo_screenheight() // 2) - (h // 2)
 root.geometry(f"+{x}+{y}")
 
-# Start the auto-play scheduler
+# Schedule Mac to wake before each prayer time (asks for admin password once)
+schedule_wake_times(prayer_times)
+
+# Start the auto-play scheduler and daily refresh
 check_prayer_times()
+daily_refresh()
 
 root.mainloop()
