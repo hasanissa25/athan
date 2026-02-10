@@ -109,8 +109,8 @@ def daily_refresh():
             row_labels[prayer].config(bg="#16213e", fg="#e0e0e0")
         # Schedule wake times for the new day
         schedule_wake_times(prayer_times)
-    # Check again in 3 hours
-    root.after(3 * 60 * 60 * 1000, daily_refresh)
+    # Check again in 3 hours (10,800,000 ms)
+    root.after(10800000, daily_refresh)
 
 # --- Auto-play scheduler ---
 # Tracks which prayers have already been announced today
